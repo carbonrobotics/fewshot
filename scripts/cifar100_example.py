@@ -4,6 +4,7 @@ import pathlib
 import pickle
 import tarfile
 import uuid
+from typing import Tuple
 
 import numpy
 import pandas
@@ -76,7 +77,7 @@ def download_cifar100(data_dir: str) -> None:
                 image.save(image_filepath, format="png")
 
 
-def get_datasets(data_dir: str, seed: int = 100) -> tuple[fewshot.Dataset, fewshot.Dataset, fewshot.Dataset]:
+def get_datasets(data_dir: str, seed: int = 100) -> Tuple[fewshot.Dataset, fewshot.Dataset, fewshot.Dataset]:
     data_dir_obj = pathlib.Path(data_dir)
     metadata_filepath = data_dir_obj / "metadata.csv"
     metadata = pandas.read_csv(metadata_filepath, header=0)

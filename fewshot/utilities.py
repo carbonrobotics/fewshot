@@ -1,4 +1,5 @@
 import random
+from typing import List
 
 import torch
 import torchvision  # type: ignore
@@ -39,5 +40,5 @@ def default_evaluation_transform_fn(image: Image.Image) -> torch.Tensor:
     return tensor_image
 
 
-def collate_fn(datapoints: list[Datapoint]) -> Episode:
+def collate_fn(datapoints: List[Datapoint]) -> Episode:
     return Episode(datapoints)

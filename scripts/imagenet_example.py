@@ -1,6 +1,7 @@
 import datetime
 import os
 import uuid
+from typing import List, Tuple
 
 import numpy
 
@@ -8,11 +9,11 @@ import fewshot
 import fewshot.utilities
 
 
-def get_datasets(seed: int = 100) -> tuple[fewshot.Dataset, fewshot.Dataset, fewshot.Dataset]:
+def get_datasets(seed: int = 100) -> Tuple[fewshot.Dataset, fewshot.Dataset, fewshot.Dataset]:
     imagenet_dir = "/imagenet/imagenet/"
 
     class_names = []
-    data: dict[str, list[str]] = {}
+    data: dict[str, List[str]] = {}
     for class_name in os.listdir(imagenet_dir):
         class_dir = os.path.join(imagenet_dir, class_name)
 

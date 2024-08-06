@@ -1,4 +1,4 @@
-from typing import Iterator
+from typing import Iterator, List, Tuple
 
 import numpy
 import torch
@@ -25,7 +25,7 @@ class Sampler(torch.utils.data.Sampler):
 
         self._rng = numpy.random.RandomState(seed)
 
-    def __iter__(self) -> Iterator[list[tuple[int, str]]]:
+    def __iter__(self) -> Iterator[List[Tuple[int, str]]]:
         for _ in range(self._num_episodes):
             class_names = self._rng.choice(self._dataset.class_names, self._num_classes, replace=False)
 

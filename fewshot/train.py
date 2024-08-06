@@ -2,9 +2,8 @@ import logging
 import os
 
 import torch
-from torch.nn.parallel import DistributedDataParallel
-
 import wandb
+from torch.nn.parallel import DistributedDataParallel
 
 from .datasets import Dataset
 from .models import BaseModel

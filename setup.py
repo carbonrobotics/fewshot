@@ -2,12 +2,14 @@ import subprocess
 
 from setuptools import setup
 
+
 def get_git_version():
     try:
         version = subprocess.check_output(["git", "describe", "--tags"]).strip().decode("utf-8")
         return version
     except subprocess.CalledProcessError:
         return "0.0.0"  # Fallback version if the command fails
+
 
 if __name__ == "__main__":
     setup(

@@ -1,5 +1,5 @@
 import pathlib
-from typing import Optional
+from typing import List
 
 import torch
 
@@ -34,7 +34,7 @@ class Datapoint:
 
 
 class Episode:
-    def __init__(self, datapoints: list[Datapoint]):
+    def __init__(self, datapoints: List[Datapoint]):
         self._datapoints = datapoints
         self._class_names = list(set([datapoint.label for datapoint in datapoints]))
         self._roles = [datapoint.role for datapoint in datapoints]

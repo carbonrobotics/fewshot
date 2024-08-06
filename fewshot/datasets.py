@@ -1,5 +1,5 @@
 import pathlib
-from typing import Any, Callable
+from typing import Any, Callable, List, Tuple
 
 import torch
 from PIL import Image
@@ -12,8 +12,8 @@ from .utilities import (default_evaluation_transform_fn, default_load_fn,
 class Dataset(torch.utils.data.Dataset):
     def __init__(
         self,
-        data: list[str],
-        labels: list[str],
+        data: List[str],
+        labels: List[str],
         load_fn: Callable[[Any], Image.Image] = default_load_fn,
         transform_fn: Callable[[Any], torch.Tensor] = default_evaluation_transform_fn,
     ) -> None:
@@ -35,7 +35,7 @@ class Dataset(torch.utils.data.Dataset):
     def name2indices(self):
         return self._name2indices
 
-    def __getitem__(self, item: tuple[int, DatapointRole]) -> Datapoint:
+    def __getitem__(self, item: Tuple[int, DatapointRole]) -> Datapoint:
         index, role = item
 
         filepath = self._data[index]
