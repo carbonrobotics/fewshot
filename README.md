@@ -1,2 +1,2 @@
 # fewshot
-The Python package for few-shot learning.
+A Python package for few-shot learning.
