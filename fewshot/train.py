@@ -89,6 +89,9 @@ def train_subprocess(
             loss = loss_fn(logits, episode.y)
             accuracy = (logits.argmax(dim=1) == episode.y).float().mean()
 
+            torch.distributed.all_reduce(loss, op=torch.distributed.ReduceOp.AVG)
+            torch.distributed.all_reduce(accuracy, op=torch.distributed.ReduceOp.AVG)
+
         losses.append(loss.item())
         accuracies.append(accuracy.item())
 
@@ -142,6 +145,9 @@ def train_subprocess(
             optimizer.step()
             global_step += 1
 
+            torch.distributed.all_reduce(loss, op=torch.distributed.ReduceOp.AVG)
+            torch.distributed.all_reduce(accuracy, op=torch.distributed.ReduceOp.AVG)
+
             if rank == 0:
                 step_log(
                     epoch_index,
@@ -173,6 +179,9 @@ def train_subprocess(
                 logits = distributed_model(episode)
                 loss = loss_fn(logits, episode.y)
                 accuracy = (logits.argmax(dim=1) == episode.y).float().mean()
+
+                torch.distributed.all_reduce(loss, op=torch.distributed.ReduceOp.AVG)
+                torch.distributed.all_reduce(accuracy, op=torch.distributed.ReduceOp.AVG)
 
             losses.append(loss.item())
             accuracies.append(accuracy.item())
