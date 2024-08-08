@@ -4,13 +4,13 @@ import os
 
 import torch
 import wandb
-from torch.distributed.launcher.api import LaunchConfig, elastic_launch
+from torch.distributed.launcher.api import elastic_launch
 from torch.nn.parallel import DistributedDataParallel
 
 from .datasets import Dataset
 from .models import BaseModel
 from .sampler import Sampler
-from .utilities import collate_fn
+from .utilities import collate_fn, get_elastic_launcher_config
 
 
 @dataclasses.dataclass
@@ -30,24 +30,11 @@ class TrainingConfig:
 def train(model: BaseModel, training_dataset: Dataset, validation_dataset: Dataset, *args, **kwargs) -> None:
     LOG = logging.getLogger("fewshot")
     LOG.info("Starting training...")
-    launch_config = LaunchConfig(
-        min_nodes=1,
-        max_nodes=1,
-        nproc_per_node=8,
-        run_id="none",
-        role="default",
-        rdzv_endpoint="127.0.0.1:29500",
-        rdzv_backend="static",
-        rdzv_configs={"rank": 0, "timeout": 900},
-        rdzv_timeout=-1,
-        max_restarts=0,
-        monitor_interval=5,
-        start_method="spawn",
-        metrics_cfg={},
-        local_addr=None,
-    )
+
+    launch_config = get_elastic_launcher_config()
     launcher = elastic_launch(launch_config, train_subprocess)
     training_config = TrainingConfig(*args, **kwargs)
+
     launcher(model, training_dataset, validation_dataset, training_config)
 
 
@@ -68,6 +55,7 @@ def train_subprocess(
             id=config.model_id,
             dir=experiment_dir,
             config=dataclasses.asdict(config),
+            resume="never",
         )
 
     validation_dataloader = torch.utils.data.DataLoader(

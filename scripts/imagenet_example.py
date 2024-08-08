@@ -88,9 +88,10 @@ if __name__ == "__main__":
         num_validation_episodes=10,
     )
 
-    # fewshot.evaluate(
-    #    model_id=model_id,
-    #    data_dir=data_dir,
-    #    model=model,
-    #    dataset=test_data,
-    # )
+    fewshot.evaluate(
+        model_id=model_id,
+        data_dir=data_dir,
+        model=model,
+        dataset=test_data,
+        num_episodes=20,
+    )
