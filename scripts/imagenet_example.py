@@ -78,17 +78,19 @@ if __name__ == "__main__":
     data_dir = "/data/carbon/models/"
 
     fewshot.train(
+        model,
+        train_data,
+        val_data,
         model_id=model_id,
         data_dir=data_dir,
-        model=model,
-        training_dataset=train_data,
-        validation_dataset=val_data,
-        num_training_episodes=2000,
+        num_epochs=1,
+        num_training_episodes=10,
+        num_validation_episodes=10,
     )
 
-    fewshot.evaluate(
-        model_id=model_id,
-        data_dir=data_dir,
-        model=model,
-        dataset=test_data,
-    )
+    # fewshot.evaluate(
+    #    model_id=model_id,
+    #    data_dir=data_dir,
+    #    model=model,
+    #    dataset=test_data,
+    # )

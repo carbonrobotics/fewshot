@@ -5,4 +5,5 @@ from .simple import SimpleCNN
 __all__ = [
     "SimpleCNN",
     "BaseEncoder",
+    "ResNet",
 ]

@@ -1,8 +1,10 @@
+import dataclasses
 import logging
 import os
 
 import torch
 import wandb
+from torch.distributed.launcher.api import LaunchConfig, elastic_launch
 from torch.nn.parallel import DistributedDataParallel
 
 from .datasets import Dataset
@@ -11,54 +13,71 @@ from .sampler import Sampler
 from .utilities import collate_fn
 
 
-def train(
-    model_id: str,
-    data_dir: str,
-    model: BaseModel,
-    training_dataset: Dataset,
-    validation_dataset: Dataset,
-    num_epochs: int = 1000,
-    num_training_episodes: int = 250,
-    num_validation_episodes: int = 250,
-    learning_rate: float = 1e-5,
-    num_classes: int = 5,
-    num_support_samples: int = 5,
-    num_query_samples: int = 8,
-    destroy_process_group: bool = False,
+@dataclasses.dataclass
+class TrainingConfig:
+    model_id: str
+    data_dir: str
+    num_epochs: int = 1000
+    num_training_episodes: int = 250
+    num_validation_episodes: int = 250
+    learning_rate: float = 1e-5
+    num_classes: int = 5
+    num_support_samples: int = 5
+    num_query_samples: int = 8
+    destroy_process_group: bool = False
+
+
+def train(model: BaseModel, training_dataset: Dataset, validation_dataset: Dataset, *args, **kwargs) -> None:
+    LOG = logging.getLogger("fewshot")
+    LOG.info("Starting training...")
+    launch_config = LaunchConfig(
+        min_nodes=1,
+        max_nodes=1,
+        nproc_per_node=8,
+        run_id="none",
+        role="default",
+        rdzv_endpoint="127.0.0.1:29500",
+        rdzv_backend="static",
+        rdzv_configs={"rank": 0, "timeout": 900},
+        rdzv_timeout=-1,
+        max_restarts=0,
+        monitor_interval=5,
+        start_method="spawn",
+        metrics_cfg={},
+        local_addr=None,
+    )
+    launcher = elastic_launch(launch_config, train_subprocess)
+    training_config = TrainingConfig(*args, **kwargs)
+    launcher(model, training_dataset, validation_dataset, training_config)
+
+
+def train_subprocess(
+    model: BaseModel, training_dataset: Dataset, validation_dataset: Dataset, config: TrainingConfig
 ) -> None:
+    LOG = logging.getLogger("fewshot")
+
     torch.distributed.init_process_group(backend="nccl")
     rank = int(os.environ["LOCAL_RANK"])
 
     if rank == 0:
-        LOG = logging.getLogger("fewshot")
-        LOG.info("Starting training...")
-
-        experiment_dir = os.path.join(data_dir, model_id)
+        experiment_dir = os.path.join(config.data_dir, config.model_id)
         os.makedirs(experiment_dir, exist_ok=True)
 
         run = wandb.init(
             project="fewshot-testing",
-            id=model_id,
+            id=config.model_id,
             dir=experiment_dir,
-            config={
-                "num_epochs": num_epochs,
-                "num_training_episodes": num_training_episodes,
-                "num_validation_episodes": num_validation_episodes,
-                "num_classes": num_classes,
-                "num_support_samples": num_support_samples,
-                "num_query_samples": num_query_samples,
-                "learning_rate": learning_rate,
-            },
+            config=dataclasses.asdict(config),
         )
 
     validation_dataloader = torch.utils.data.DataLoader(
         validation_dataset,
         batch_sampler=Sampler(
             validation_dataset,
-            num_classes=num_classes,
-            num_support_samples=num_support_samples,
-            num_query_samples=num_query_samples,
-            num_episodes=num_validation_episodes,
+            num_classes=config.num_classes,
+            num_support_samples=config.num_support_samples,
+            num_query_samples=config.num_query_samples,
+            num_episodes=config.num_validation_episodes,
         ),
         collate_fn=collate_fn,
         num_workers=4,
@@ -68,7 +87,7 @@ def train(
     distributed_model = DistributedDataParallel(model, device_ids=[rank], find_unused_parameters=True)
 
     loss_fn = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(distributed_model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(distributed_model.parameters(), lr=config.learning_rate)
     global_step = 0
 
     distributed_model.eval()
@@ -88,9 +107,9 @@ def train(
         if rank == 0:
             step_log(
                 -1,
-                num_epochs,
+                config.num_epochs,
                 episode_index,
-                num_validation_episodes,
+                config.num_validation_episodes,
                 loss.item(),
                 accuracy.item(),
                 training=False,
@@ -111,16 +130,16 @@ def train(
         training_dataset,
         batch_sampler=Sampler(
             training_dataset,
-            num_classes=num_classes,
-            num_support_samples=num_support_samples,
-            num_query_samples=num_query_samples,
-            num_episodes=num_training_episodes,
+            num_classes=config.num_classes,
+            num_support_samples=config.num_support_samples,
+            num_query_samples=config.num_query_samples,
+            num_episodes=config.num_training_episodes,
         ),
         collate_fn=collate_fn,
         num_workers=4,
     )
 
-    for epoch_index in range(num_epochs):
+    for epoch_index in range(config.num_epochs):
         distributed_model.train()
         for episode_index, episode in enumerate(training_dataloader):
             episode = episode.to(rank)
@@ -138,9 +157,9 @@ def train(
             if rank == 0:
                 step_log(
                     epoch_index,
-                    num_epochs,
+                    config.num_epochs,
                     episode_index,
-                    num_training_episodes,
+                    config.num_training_episodes,
                     loss.item(),
                     accuracy.item(),
                 )
@@ -173,9 +192,9 @@ def train(
             if rank == 0:
                 step_log(
                     epoch_index,
-                    num_epochs,
+                    config.num_epochs,
                     episode_index,
-                    num_validation_episodes,
+                    config.num_validation_episodes,
                     loss.item(),
                     accuracy.item(),
                     training=False,
@@ -193,12 +212,8 @@ def train(
             )
 
     if rank == 0:
+        run.finish()
         LOG.info("Training complete.")
-
-    if destroy_process_group:
-        torch.distributed.destroy_process_group()
-
-    return None
 
 
 def validation_end_log(loss: float, accuracy: float) -> None:
