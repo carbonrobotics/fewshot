@@ -20,7 +20,7 @@ class TrainingConfig:
     num_epochs: int = 1000
     num_training_episodes: int = 250
     num_validation_episodes: int = 250
-    learning_rate: float = 1e-5
+    learning_rate: float = 1e-4
     num_classes: int = 5
     num_support_samples: int = 5
     num_query_samples: int = 8
@@ -130,6 +130,7 @@ def train_subprocess(
         num_workers=4,
     )
 
+    best_accuracy = 0.0
     for epoch_index in range(config.num_epochs):
         distributed_model.train()
         for episode_index, episode in enumerate(training_dataloader):
@@ -165,9 +166,6 @@ def train_subprocess(
                     },
                     step=global_step,
                 )
-
-        if rank == 0:
-            save_model(experiment_dir, distributed_model)
 
         distributed_model.eval()
         losses = []
@@ -208,6 +206,14 @@ def train_subprocess(
                 step=global_step,
             )
 
+            new_best_accuracy = False
+            if accuracy > best_accuracy:
+                best_accuracy = accuracy
+                new_best_accuracy = True
+                LOG.info(f"New best accuracy: {best_accuracy:.4f}")
+
+            save_model(experiment_dir, distributed_model, new_best_accuracy)
+
     if rank == 0:
         run.finish()
         LOG.info("Training complete.")
@@ -241,12 +247,18 @@ def step_log(
     LOG.info(message)
 
 
-def save_model(experiment_dir: str, model: torch.nn.Module) -> None:
-    weights_dir = os.path.join(experiment_dir, "weights")
-    filepath = os.path.join(weights_dir, "latest.pt")
-
+def save_model(experiment_dir: str, model: torch.nn.Module, save_best: bool) -> None:
     LOG = logging.getLogger("fewshot")
-    LOG.info(f"Saving model to {filepath}")
+
+    weights_dir = os.path.join(experiment_dir, "weights")
+    latest_filepath = os.path.join(weights_dir, "latest.pt")
+    best_filepath = os.path.join(weights_dir, "best.pt")
 
     os.makedirs(weights_dir, exist_ok=True)
-    torch.save(model.state_dict(), filepath)
+
+    LOG.info(f"Saving model to {latest_filepath}")
+    torch.save(model.state_dict(), latest_filepath)
+
+    if save_best:
+        LOG.info(f"Saving model to {best_filepath}")
+        torch.save(model.state_dict(), best_filepath)

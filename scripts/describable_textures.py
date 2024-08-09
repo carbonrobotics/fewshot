@@ -10,15 +10,16 @@ import fewshot.utilities
 
 
 def get_datasets(data_dir: str, seed: int = 100) -> Tuple[fewshot.Dataset, fewshot.Dataset, fewshot.Dataset]:
-    cifar_100 = {
-        "train": torchvision.datasets.CIFAR100(root=data_dir, train=True, download=True),
-        "test": torchvision.datasets.CIFAR100(root=data_dir, train=False, download=True),
+    torch_dataset = {
+        "train": torchvision.datasets.DTD(root=data_dir, split="train", download=True),
+        "val": torchvision.datasets.DTD(root=data_dir, split="val", download=True),
+        "test": torchvision.datasets.DTD(root=data_dir, split="test", download=True),
     }
 
     os.makedirs(os.path.join(data_dir, "local_data"), exist_ok=True)
 
     dataset: Dict[str, List[str]] = {}
-    for split, data in cifar_100.items():
+    for split, data in torch_dataset.items():
         for index, (image, target) in enumerate(data):
             key = f"{split}-{index}"
 

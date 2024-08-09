@@ -83,9 +83,6 @@ if __name__ == "__main__":
         val_data,
         model_id=model_id,
         data_dir=data_dir,
-        num_epochs=1,
-        num_training_episodes=10,
-        num_validation_episodes=10,
     )
 
     fewshot.evaluate(
@@ -93,5 +90,4 @@ if __name__ == "__main__":
         data_dir=data_dir,
         model=model,
         dataset=test_data,
-        num_episodes=20,
     )
